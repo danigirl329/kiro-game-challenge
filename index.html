@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Kiro World</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: white;
+        }
+        
+        #gameContainer {
+            text-align: center;
+        }
+        
+        #gameCanvas {
+            border: 3px solid #790ECB;
+            box-shadow: 0 0 20px rgba(121, 14, 203, 0.5);
+            display: block;
+            margin: 0 auto;
+        }
+        
+        #ui {
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 800px;
+            padding: 15px 20px;
+            background: #1a1a1a;
+            border-radius: 8px;
+            border: 2px solid #790ECB;
+        }
+        
+        #scoreContainer {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        #score, #highScore, #lives {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        #score {
+            color: #790ECB;
+        }
+        
+        #highScore {
+            color: #9b3fd9;
+            font-size: 18px;
+            transition: all 0.3s ease;
+        }
+        
+        #highScore.new-high-score {
+            color: #FFD700;
+            font-size: 22px;
+            animation: pulse 1s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+            }
+            50% {
+                transform: scale(1.1);
+                text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+            }
+        }
+        
+        .heart {
+            color: #ff4444;
+            margin: 0 2px;
+        }
+        
+        #message {
+            margin-top: 15px;
+            font-size: 18px;
+            color: #a0a0a0;
+        }
+        
+        .win {
+            color: #790ECB !important;
+            font-weight: bold;
+        }
+        
+        .lose {
+            color: #ff4444 !important;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="ui">
+            <div id="scoreContainer">
+                <div id="score">Score: 0</div>
+                <div id="highScore">High Score: 0</div>
+            </div>
+            <div id="lives"></div>
+        </div>
+        <div id="message">Use Arrow Keys or WASD to move and jump</div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>

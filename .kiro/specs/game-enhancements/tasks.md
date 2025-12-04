@@ -1,0 +1,127 @@
+# Implementation Plan
+
+- [x] 1. Implement Storage Manager and score persistence
+  - Create StorageManager object with methods for saving/loading scores and high scores
+  - Add highScore property to gameState and load it on game initialization
+  - Modify game end logic to save scores to local storage with timestamps
+  - Implement 50-entry history limit with oldest-entry removal
+  - Add error handling for local storage unavailability
+  - Update UI to display high score alongside current score
+  - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.3, 2.5_
+- [ ]* 1.1 Write property test for score persistence round-trip
+  - **Property 1: Score persistence round-trip**
+  - **Validates: Requirements 1.1, 1.4**
+- [ ]* 1.2 Write property test for history entry completeness
+  - **Property 2: History entry completeness**
+  - **Validates: Requirements 1.2**
+- [ ]* 1.3 Write property test for history size constraint
+  - **Property 3: History size constraint**
+  - **Validates: Requirements 1.5**
+- [ ]* 1.4 Write property test for high score monotonicity
+  - **Property 4: High score monotonicity**
+  - **Validates: Requirements 2.3**
+- [ ]* 1.5 Write property test for high score UI consistency
+  - **Property 5: High score UI consistency**
+  - **Validates: Requirements 2.5**
+
+- [x] 2. Create particle system foundation and trail particles
+  - Create ParticleSystem object with particles array and core methods (update, draw)
+  - Define particle data structure with position, velocity, life, size, color, type
+  - Implement trail particle creation in updatePlayer when moving horizontally
+  - Add particle update logic with life decay and opacity calculation
+  - Add particle rendering in draw function with camera offset
+  - Implement particle cleanup when life reaches zero
+  - Add 50-particle limit for trail particles
+  - Implement stationary detection to stop trail generation
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+- [ ]* 2.1 Write property test for trail particle generation on movement
+  - **Property 6: Trail particle generation on movement**
+  - **Validates: Requirements 3.1**
+- [ ]* 2.2 Write property test for trail particle opacity decay
+  - **Property 7: Trail particle opacity decay**
+  - **Validates: Requirements 3.2**
+- [ ]* 2.3 Write property test for particle cleanup
+  - **Property 8: Particle cleanup**
+  - **Validates: Requirements 3.3, 4.4, 5.4**
+- [ ]* 2.4 Write property test for stationary no-trail generation
+  - **Property 9: Stationary no-trail generation**
+  - **Validates: Requirements 3.4**
+- [ ]* 2.5 Write property test for trail particle count limit
+  - **Property 10: Trail particle count limit**
+  - **Validates: Requirements 3.5**
+
+- [ ] 3. Add explosion and sparkle particle effects
+  - Implement createExplosion method with multi-directional particle emission
+  - Add explosion particle physics with velocity and opacity decay
+  - Detect collisions in updatePlayer and trigger explosion effects
+  - Implement createSparkles method with upward motion and rotation
+  - Add sparkle particle generation on collectible collection
+  - Implement color variation for sparkles (gold for coins, cyan for gems)
+  - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 5.1, 5.3, 5.4, 5.5_
+- [ ]* 3.1 Write property test for collision generates explosion
+  - **Property 11: Collision generates explosion**
+  - **Validates: Requirements 4.1**
+- [ ]* 3.2 Write property test for explosion particle directionality
+  - **Property 12: Explosion particle directionality**
+  - **Validates: Requirements 4.2**
+- [ ]* 3.3 Write property test for explosion particle physics
+  - **Property 13: Explosion particle physics**
+  - **Validates: Requirements 4.3**
+- [ ]* 3.4 Write property test for collection generates sparkles
+  - **Property 14: Collection generates sparkles**
+  - **Validates: Requirements 5.1**
+- [ ]* 3.5 Write property test for sparkle upward motion
+  - **Property 15: Sparkle upward motion**
+  - **Validates: Requirements 5.3**
+- [ ]* 3.6 Write property test for sparkle color matching
+  - **Property 16: Sparkle color matching**
+  - **Validates: Requirements 5.5**
+
+- [x] 4. Implement confetti effect for new high scores
+  - Implement createConfetti method generating 100+ particles
+  - Add confetti particle properties with rotation and falling motion
+  - Implement multi-color confetti using Kiro brand colors
+  - Detect new high score achievement in game end logic
+  - Trigger confetti generation when new high score is achieved
+  - Add visual indicator in UI for new high score achievement
+  - Implement confetti cleanup when particles fall below screen
+  - _Requirements: 2.4, 6.1, 6.2, 6.3, 6.4, 6.5_
+- [ ]* 4.1 Write property test for high score triggers confetti
+  - **Property 17: High score triggers confetti**
+  - **Validates: Requirements 6.1**
+- [ ]* 4.2 Write property test for confetti color variety
+  - **Property 18: Confetti color variety**
+  - **Validates: Requirements 6.2**
+- [ ]* 4.3 Write property test for confetti falling motion
+  - **Property 19: Confetti falling motion**
+  - **Validates: Requirements 6.3**
+- [ ]* 4.4 Write property test for confetti screen bounds cleanup
+  - **Property 20: Confetti screen bounds cleanup**
+  - **Validates: Requirements 6.4**
+- [ ]* 4.5 Write property test for confetti minimum count
+  - **Property 21: Confetti minimum count**
+  - **Validates: Requirements 6.5**
+
+- [x] 5. Add double jump mechanic with visual feedback
+  - Add doubleJumpAvailable and hasDoubleJumped flags to player object
+  - Modify jump input handling to check for double jump availability
+  - Implement double jump logic applying JUMP_POWER when airborne
+  - Reset double jump availability when player lands on platform
+  - Prevent additional jumps after double jump is used
+  - Add particle effect when double jump is executed
+  - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
+- [ ]* 5.1 Write property test for double jump availability in air
+  - **Property 22: Double jump availability in air**
+  - **Validates: Requirements 7.1**
+- [ ]* 5.2 Write property test for landing resets double jump
+  - **Property 23: Landing resets double jump**
+  - **Validates: Requirements 7.2**
+- [ ]* 5.3 Write property test for double jump single use
+  - **Property 24: Double jump single use**
+  - **Validates: Requirements 7.3**
+- [ ]* 5.4 Write property test for double jump power consistency
+  - **Property 25: Double jump power consistency**
+  - **Validates: Requirements 7.4**
+- [ ]* 5.5 Write property test for double jump visual feedback
+  - **Property 26: Double jump visual feedback**
+  - **Validates: Requirements 7.5**
