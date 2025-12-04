@@ -12,12 +12,14 @@ Super Kiro World is a side-scrolling platformer where you guide Kiro through cha
 
 ### Controls
 - **Arrow Keys** or **WASD**: Move left/right and jump
+- **Space/Up/W**: Jump (can be used multiple times... 🤔)
 - **R**: Restart the game
 
 ### Objective
 - Collect coins (10 points) and gems (25-50 points)
 - Navigate platforms to reach the goal
 - Don't lose all your lives!
+- Explore thoroughly... some say there's more than meets the eye 👀
 
 ## 🚀 Getting Started
 
@@ -41,6 +43,7 @@ No installation or build process required! Simply:
 - **Collectibles**: Coins and gems with different values
 - **Responsive Controls**: Immediate feedback to player input
 - **Kiro Branding**: Official Kiro colors and logo sprite
+- **Hidden Secrets**: Legends speak of a place beyond the clouds... but only the most skilled jumpers will find it 🌟
 
 ## 🛠️ Technology Stack
 
@@ -67,6 +70,13 @@ Created for the AWS Re:Invent game development workshop, demonstrating:
 - Camera systems for scrolling levels
 - State management in vanilla JavaScript
 - Canvas rendering techniques
+
+## 🔮 Mysteries & Secrets
+
+Some players have reported strange phenomena near the third floating platform... 
+If you can master the art of aerial acrobatics, you might discover something extraordinary.
+
+*Hint: The number three holds special significance in this world.*
 
 ## 📝 License
 

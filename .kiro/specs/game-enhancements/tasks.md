@@ -50,7 +50,7 @@
   - **Property 10: Trail particle count limit**
   - **Validates: Requirements 3.5**
 
-- [ ] 3. Add explosion and sparkle particle effects
+- [x] 3. Add explosion and sparkle particle effects
   - Implement createExplosion method with multi-directional particle emission
   - Add explosion particle physics with velocity and opacity decay
   - Detect collisions in updatePlayer and trigger explosion effects

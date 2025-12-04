@@ -154,6 +154,52 @@ const ParticleSystem = {
         }
     },
     
+    // Create explosion particles
+    createExplosion(x, y, count = 12) {
+        const explosionColors = ['#790ECB', '#9b3fd9', '#b565e8'];
+        
+        for (let i = 0; i < count; i++) {
+            const angle = (Math.PI * 2 * i) / count;
+            const speed = Math.random() * 3 + 2; // Random speed 2-5
+            
+            this.particles.push({
+                x: x,
+                y: y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: 1.0,
+                maxLife: 1.0,
+                size: Math.random() * 4 + 4, // 4-8px
+                color: explosionColors[Math.floor(Math.random() * explosionColors.length)],
+                type: 'explosion',
+                rotation: 0,
+                rotationSpeed: 0
+            });
+        }
+    },
+    
+    // Create sparkle particles
+    createSparkles(x, y, color, count = 8) {
+        for (let i = 0; i < count; i++) {
+            const angle = (Math.PI * 2 * i) / count;
+            const horizontalSpeed = Math.cos(angle) * (Math.random() * 1 + 0.5);
+            
+            this.particles.push({
+                x: x,
+                y: y,
+                vx: horizontalSpeed,
+                vy: -(Math.random() * 3 + 2), // Upward motion: -2 to -5
+                life: 1.0,
+                maxLife: 1.0,
+                size: Math.random() * 3 + 3, // 3-6px
+                color: color,
+                type: 'sparkle',
+                rotation: Math.random() * Math.PI * 2,
+                rotationSpeed: (Math.random() - 0.5) * 0.3
+            });
+        }
+    },
+    
     // Update all particles
     update() {
         for (let i = this.particles.length - 1; i >= 0; i--) {
@@ -181,9 +227,25 @@ const ParticleSystem = {
                 p.vy *= 0.95;
             }
             
+            // Update explosion particles
+            if (p.type === 'explosion') {
+                p.vx *= 0.92; // Velocity decay
+                p.vy *= 0.92;
+            }
+            
+            // Update sparkle particles
+            if (p.type === 'sparkle') {
+                p.rotation += p.rotationSpeed; // Rotation
+                p.vy += 0.15; // Slight gravity for upward arc
+            }
+            
             // Decrease life based on particle type
             if (p.type === 'trail') {
                 p.life -= 0.02; // 0.5 second lifetime (1.0 / 50 frames)
+            } else if (p.type === 'explosion') {
+                p.life -= 0.0125; // 0.8 second lifetime (1.0 / 80 frames)
+            } else if (p.type === 'sparkle') {
+                p.life -= 0.0167; // 1.0 second lifetime (1.0 / 60 frames)
             } else {
                 p.life -= 0.02;
             }
@@ -225,6 +287,45 @@ const ParticleSystem = {
                 ctx.beginPath();
                 ctx.arc(p.x - camera.x, p.y - camera.y, p.size, 0, Math.PI * 2);
                 ctx.fill();
+            } else if (p.type === 'explosion') {
+                // Explosion particles use camera offset (world-space effect)
+                const opacity = p.life;
+                // Parse hex color and convert to rgba
+                const hex = p.color.replace('#', '');
+                const r = parseInt(hex.substring(0, 2), 16);
+                const g = parseInt(hex.substring(2, 4), 16);
+                const b = parseInt(hex.substring(4, 6), 16);
+                ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+                ctx.beginPath();
+                ctx.arc(p.x - camera.x, p.y - camera.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (p.type === 'sparkle') {
+                // Sparkle particles use camera offset (world-space effect)
+                ctx.translate(p.x - camera.x, p.y - camera.y);
+                ctx.rotate(p.rotation);
+                
+                const opacity = p.life;
+                // Parse hex color and convert to rgba
+                const hex = p.color.replace('#', '');
+                const r = parseInt(hex.substring(0, 2), 16);
+                const g = parseInt(hex.substring(2, 4), 16);
+                const b = parseInt(hex.substring(4, 6), 16);
+                ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+                
+                // Draw sparkle as a star shape
+                ctx.beginPath();
+                for (let i = 0; i < 4; i++) {
+                    const angle = (Math.PI / 2) * i;
+                    const x = Math.cos(angle) * p.size;
+                    const y = Math.sin(angle) * p.size;
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.closePath();
+                ctx.fill();
             }
             
             ctx.restore();
@@ -251,7 +352,8 @@ let gameState = {
     gameOver: false,
     won: false,
     highScore: StorageManager.getHighScore(),
-    isNewHighScore: false
+    isNewHighScore: false,
+    inSecretLevel: false
 };
 
 // Player object
@@ -263,10 +365,14 @@ const player = {
     velocityX: 0,
     velocityY: 0,
     onGround: false,
+    wasOnGround: false,
     image: null,
     doubleJumpAvailable: true,
     hasDoubleJumped: false,
-    facingRight: true
+    facingRight: true,
+    jumpCount: 0,
+    lastJumpPlatform: null,
+    trailTimer: 0
 };
 
 // Camera
@@ -283,7 +389,7 @@ player.image.src = 'kiro-logo.png';
 const keys = {};
 
 // Level design - platforms
-const platforms = [
+const mainPlatforms = [
     // Ground level
     { x: 0, y: 550, width: 400, height: 50, color: '#790ECB' },
     { x: 500, y: 550, width: 400, height: 50, color: '#790ECB' },
@@ -294,7 +400,7 @@ const platforms = [
     // Mid-level platforms
     { x: 300, y: 450, width: 150, height: 20, color: '#9b3fd9' },
     { x: 600, y: 400, width: 150, height: 20, color: '#9b3fd9' },
-    { x: 900, y: 350, width: 150, height: 20, color: '#9b3fd9' },
+    { x: 900, y: 350, width: 150, height: 20, color: '#9b3fd9', id: 'third' }, // Third platform - secret trigger
     { x: 1200, y: 400, width: 150, height: 20, color: '#9b3fd9' },
     { x: 1500, y: 450, width: 150, height: 20, color: '#9b3fd9' },
     { x: 1800, y: 400, width: 150, height: 20, color: '#9b3fd9' },
@@ -310,8 +416,26 @@ const platforms = [
     { x: 2300, y: 450, width: 200, height: 20, color: '#790ECB' }
 ];
 
+// Secret level platforms (floating sky level)
+const secretPlatforms = [
+    // Entry platform
+    { x: 900, y: 100, width: 150, height: 20, color: '#FFD700' },
+    
+    // Floating path
+    { x: 1100, y: 80, width: 100, height: 15, color: '#FFD700' },
+    { x: 1250, y: 120, width: 100, height: 15, color: '#FFD700' },
+    { x: 1400, y: 80, width: 100, height: 15, color: '#FFD700' },
+    { x: 1550, y: 120, width: 100, height: 15, color: '#FFD700' },
+    { x: 1700, y: 80, width: 100, height: 15, color: '#FFD700' },
+    
+    // Final secret platform with return portal
+    { x: 1850, y: 100, width: 150, height: 20, color: '#FFD700' }
+];
+
+let platforms = mainPlatforms;
+
 // Collectibles
-const collectibles = [
+const mainCollectibles = [
     // Pink Coins (10 points)
     { x: 350, y: 420, width: 20, height: 20, type: 'coin', collected: false, value: 10 },
     { x: 650, y: 370, width: 20, height: 20, type: 'coin', collected: false, value: 10 },
@@ -344,12 +468,40 @@ const collectibles = [
     { x: 2400, y: 420, width: 30, height: 30, type: 'gem', collected: false, value: 50 }
 ];
 
+// Secret level collectibles (all high value)
+const secretCollectibles = [
+    // Golden gems (100 points each!)
+    { x: 1150, y: 50, width: 30, height: 30, type: 'gem', collected: false, value: 100 },
+    { x: 1300, y: 90, width: 30, height: 30, type: 'gem', collected: false, value: 100 },
+    { x: 1450, y: 50, width: 30, height: 30, type: 'gem', collected: false, value: 100 },
+    { x: 1600, y: 90, width: 30, height: 30, type: 'gem', collected: false, value: 100 },
+    { x: 1750, y: 50, width: 30, height: 30, type: 'gem', collected: false, value: 100 }
+];
+
+let collectibles = mainCollectibles;
+
 // Goal
 const goal = {
     x: 2450,
     y: 400,
     width: 50,
     height: 50
+};
+
+// Secret level portal (return to main level)
+const secretPortal = {
+    x: 1900,
+    y: 50,
+    width: 50,
+    height: 50
+};
+
+// Secret level trigger zone (above third platform)
+const secretTrigger = {
+    x: 900,
+    y: 0,
+    width: 150,
+    height: 200
 };
 
 // Monsters that pop up from gaps
@@ -369,7 +521,7 @@ const MONSTER_SPAWN_CHANCE = 0.75;  // 75% chance to spawn when timer triggers
 document.addEventListener('keydown', (e) => {
     keys[e.key] = true;
     
-    // Jump handling with double jump support
+    // Jump handling with triple jump tracking
     if ((e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w') && !gameState.gameOver) {
         // First jump (on ground)
         if (player.onGround) {
@@ -377,14 +529,28 @@ document.addEventListener('keydown', (e) => {
             player.onGround = false;
             player.doubleJumpAvailable = true;
             player.hasDoubleJumped = false;
+            player.jumpCount = 1;
         }
         // Double jump (in air, not used yet)
         else if (player.doubleJumpAvailable && !player.hasDoubleJumped) {
             player.velocityY = JUMP_POWER;
             player.hasDoubleJumped = true;
             player.doubleJumpAvailable = false;
+            player.jumpCount = 2;
             
             // Create visual feedback particles
+            ParticleSystem.createDoubleJumpParticles(
+                player.x + player.width / 2,
+                player.y + player.height / 2
+            );
+        }
+        // Triple jump (special - only available after double jump)
+        else if (player.jumpCount === 2 && !player.doubleJumpAvailable) {
+            player.velocityY = JUMP_POWER * 1.2; // Extra powerful
+            player.jumpCount = 3;
+            
+            // Create special triple jump particles
+            ParticleSystem.createConfetti(30);
             ParticleSystem.createDoubleJumpParticles(
                 player.x + player.width / 2,
                 player.y + player.height / 2
@@ -415,19 +581,24 @@ function updatePlayer() {
     // Apply gravity
     player.velocityY += GRAVITY;
     
-    // Generate trail particles when moving horizontally
+    // Generate trail particles when moving horizontally (throttled)
     // Only generate if player has significant horizontal velocity (not stationary)
-    if (Math.abs(player.velocityX) > 0.5) {
-        // Create trail particle at player's center position
+    player.trailTimer++;
+    if (Math.abs(player.velocityX) > 0.5 && player.trailTimer >= 5) {
+        // Create trail particle at player's center position (every 5 frames)
         ParticleSystem.createTrailParticle(
             player.x + player.width / 2,
             player.y + player.height / 2
         );
+        player.trailTimer = 0;
     }
     
     // Update position
     player.x += player.velocityX;
     player.y += player.velocityY;
+    
+    // Store previous ground state
+    player.wasOnGround = player.onGround;
     
     // Reset ground state
     player.onGround = false;
@@ -435,26 +606,46 @@ function updatePlayer() {
     // Platform collision
     platforms.forEach(platform => {
         if (checkCollision(player, platform)) {
+            let collisionX = player.x + player.width / 2;
+            let collisionY = player.y + player.height / 2;
+            
             // Landing on top
             if (player.velocityY > 0 && player.y + player.height - player.velocityY <= platform.y) {
                 player.y = platform.y - player.height;
                 player.velocityY = 0;
+                
+                // Only create explosion on initial landing (not while standing)
+                if (!player.wasOnGround) {
+                    collisionY = player.y + player.height;
+                    ParticleSystem.createExplosion(collisionX, collisionY);
+                }
+                
                 player.onGround = true;
                 // Reset double jump when landing
                 player.doubleJumpAvailable = true;
                 player.hasDoubleJumped = false;
+                player.lastJumpPlatform = platform;
+                player.jumpCount = 0;
             }
             // Hitting from below
             else if (player.velocityY < 0 && player.y - player.velocityY >= platform.y + platform.height) {
                 player.y = platform.y + platform.height;
                 player.velocityY = 0;
+                
+                // Create explosion at collision point (top of player)
+                collisionY = player.y;
+                ParticleSystem.createExplosion(collisionX, collisionY);
             }
             // Side collision
             else {
                 if (player.velocityX > 0) {
                     player.x = platform.x - player.width;
+                    collisionX = player.x + player.width;
+                    ParticleSystem.createExplosion(collisionX, collisionY);
                 } else if (player.velocityX < 0) {
                     player.x = platform.x + platform.width;
+                    collisionX = player.x;
+                    ParticleSystem.createExplosion(collisionX, collisionY);
                 }
                 player.velocityX = 0;
             }
@@ -480,12 +671,68 @@ function updatePlayer() {
                 // Coins and gems add to score
                 gameState.score += item.value;
                 updateUI();
+                
+                // Create sparkle particles with color based on collectible type
+                const sparkleX = item.x + item.width / 2;
+                const sparkleY = item.y + item.height / 2;
+                
+                if (item.type === 'coin') {
+                    // Gold sparkles for coins
+                    ParticleSystem.createSparkles(sparkleX, sparkleY, '#FFD700', 8);
+                } else if (item.type === 'gem') {
+                    // Cyan sparkles for gems
+                    ParticleSystem.createSparkles(sparkleX, sparkleY, '#00FFFF', 10);
+                }
             }
         }
     });
     
+    // Check secret level trigger (triple jump from third platform)
+    if (!gameState.inSecretLevel && player.jumpCount === 3 && checkCollision(player, secretTrigger)) {
+        // Enter secret level!
+        gameState.inSecretLevel = true;
+        platforms = secretPlatforms;
+        collectibles = secretCollectibles;
+        player.x = 900;
+        player.y = 50;
+        player.velocityX = 0;
+        player.velocityY = 0;
+        player.jumpCount = 0;
+        camera.x = 600; // Center on secret area
+        
+        // Visual celebration
+        ParticleSystem.createConfetti(50);
+        
+        // Update message
+        const messageEl = document.getElementById('message');
+        messageEl.textContent = '✨ SECRET LEVEL DISCOVERED! Collect the golden gems!';
+        messageEl.className = 'win';
+        setTimeout(() => {
+            messageEl.textContent = 'Find the portal to return!';
+            messageEl.className = '';
+        }, 3000);
+    }
+    
+    // Check secret portal (return to main level)
+    if (gameState.inSecretLevel && checkCollision(player, secretPortal)) {
+        // Return to main level
+        gameState.inSecretLevel = false;
+        platforms = mainPlatforms;
+        collectibles = mainCollectibles;
+        player.x = 900;
+        player.y = 300;
+        player.velocityX = 0;
+        player.velocityY = 0;
+        player.jumpCount = 0;
+        camera.x = 600;
+        
+        const messageEl = document.getElementById('message');
+        messageEl.textContent = 'Returned from secret level!';
+        messageEl.className = '';
+    }
+    
     // Check goal
-    if (checkCollision(player, goal)) {
+    if (!gameState.inSecretLevel && checkCollision(player, goal)) {
         gameState.won = true;
         gameState.gameOver = true;
         updateMessage();
@@ -663,8 +910,9 @@ function draw() {
                 ctx.arc(item.x + item.width / 2 - 3, item.y + item.height / 2 - 3, item.width / 4, 0, Math.PI * 2);
                 ctx.fill();
             } else if (item.type === 'gem') {
-                // Draw gem
-                ctx.fillStyle = '#00FFFF';
+                // Draw gem (golden in secret level, cyan in main level)
+                const isGolden = item.value >= 100;
+                ctx.fillStyle = isGolden ? '#FFD700' : '#00FFFF';
                 ctx.beginPath();
                 ctx.moveTo(item.x + item.width / 2, item.y);
                 ctx.lineTo(item.x + item.width, item.y + item.height / 2);
@@ -678,6 +926,14 @@ function draw() {
                 ctx.beginPath();
                 ctx.arc(item.x + item.width / 2, item.y + item.height / 3, item.width / 6, 0, Math.PI * 2);
                 ctx.fill();
+                
+                // Extra sparkle for golden gems
+                if (isGolden) {
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                    ctx.beginPath();
+                    ctx.arc(item.x + item.width / 2 + 5, item.y + item.height / 2, item.width / 8, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             } else if (item.type === 'bomb') {
                 // Draw black bomb
                 ctx.fillStyle = '#1a1a1a';
@@ -702,37 +958,95 @@ function draw() {
         }
     });
     
-    // Draw dungeon exit door
-    // Door frame (stone)
-    ctx.fillStyle = '#4a4a4a';
-    ctx.fillRect(goal.x, goal.y, goal.width, goal.height);
-    
-    // Door (wooden)
-    ctx.fillStyle = '#5c4033';
-    ctx.fillRect(goal.x + 5, goal.y + 5, goal.width - 10, goal.height - 5);
-    
-    // Door planks (horizontal lines)
-    ctx.strokeStyle = '#3d2b1f';
-    ctx.lineWidth = 2;
-    for (let i = 0; i < 3; i++) {
-        const y = goal.y + 15 + i * 12;
+    // Draw secret portal if in secret level
+    if (gameState.inSecretLevel) {
+        // Animated swirling portal
+        const time = Date.now() / 1000;
+        
+        // Outer glow
+        const gradient = ctx.createRadialGradient(
+            secretPortal.x + secretPortal.width / 2,
+            secretPortal.y + secretPortal.height / 2,
+            0,
+            secretPortal.x + secretPortal.width / 2,
+            secretPortal.y + secretPortal.height / 2,
+            secretPortal.width
+        );
+        gradient.addColorStop(0, 'rgba(121, 14, 203, 0.8)');
+        gradient.addColorStop(0.5, 'rgba(155, 63, 217, 0.4)');
+        gradient.addColorStop(1, 'rgba(181, 101, 232, 0)');
+        ctx.fillStyle = gradient;
         ctx.beginPath();
-        ctx.moveTo(goal.x + 5, y);
-        ctx.lineTo(goal.x + goal.width - 5, y);
-        ctx.stroke();
+        ctx.arc(
+            secretPortal.x + secretPortal.width / 2,
+            secretPortal.y + secretPortal.height / 2,
+            secretPortal.width,
+            0,
+            Math.PI * 2
+        );
+        ctx.fill();
+        
+        // Inner portal
+        ctx.fillStyle = '#790ECB';
+        ctx.beginPath();
+        ctx.arc(
+            secretPortal.x + secretPortal.width / 2,
+            secretPortal.y + secretPortal.height / 2,
+            secretPortal.width / 2,
+            0,
+            Math.PI * 2
+        );
+        ctx.fill();
+        
+        // Swirl effect
+        ctx.strokeStyle = '#b565e8';
+        ctx.lineWidth = 3;
+        for (let i = 0; i < 3; i++) {
+            ctx.beginPath();
+            ctx.arc(
+                secretPortal.x + secretPortal.width / 2,
+                secretPortal.y + secretPortal.height / 2,
+                10 + i * 8,
+                time * 2 + i * Math.PI / 3,
+                time * 2 + i * Math.PI / 3 + Math.PI
+            );
+            ctx.stroke();
+        }
     }
     
-    // Door handle
-    ctx.fillStyle = '#FFD700';
-    ctx.beginPath();
-    ctx.arc(goal.x + goal.width - 15, goal.y + goal.height / 2, 4, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Arch top
-    ctx.fillStyle = '#4a4a4a';
-    ctx.beginPath();
-    ctx.arc(goal.x + goal.width / 2, goal.y + 5, goal.width / 2 - 5, Math.PI, 0);
-    ctx.fill();
+    // Draw dungeon exit door (only in main level)
+    if (!gameState.inSecretLevel) {
+        // Door frame (stone)
+        ctx.fillStyle = '#4a4a4a';
+        ctx.fillRect(goal.x, goal.y, goal.width, goal.height);
+        
+        // Door (wooden)
+        ctx.fillStyle = '#5c4033';
+        ctx.fillRect(goal.x + 5, goal.y + 5, goal.width - 10, goal.height - 5);
+        
+        // Door planks (horizontal lines)
+        ctx.strokeStyle = '#3d2b1f';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 3; i++) {
+            const y = goal.y + 15 + i * 12;
+            ctx.beginPath();
+            ctx.moveTo(goal.x + 5, y);
+            ctx.lineTo(goal.x + goal.width - 5, y);
+            ctx.stroke();
+        }
+        
+        // Door handle
+        ctx.fillStyle = '#FFD700';
+        ctx.beginPath();
+        ctx.arc(goal.x + goal.width - 15, goal.y + goal.height / 2, 4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Arch top
+        ctx.fillStyle = '#4a4a4a';
+        ctx.beginPath();
+        ctx.arc(goal.x + goal.width / 2, goal.y + 5, goal.width / 2 - 5, Math.PI, 0);
+        ctx.fill();
+    }
     
     // Draw monsters
     monsters.forEach(monster => {
@@ -877,7 +1191,8 @@ function restartGame() {
         gameOver: false,
         won: false,
         highScore: StorageManager.getHighScore(),
-        isNewHighScore: false
+        isNewHighScore: false,
+        inSecretLevel: false
     };
     
     player.x = 100;
@@ -886,16 +1201,25 @@ function restartGame() {
     player.velocityY = 0;
     player.doubleJumpAvailable = true;
     player.hasDoubleJumped = false;
+    player.jumpCount = 0;
+    player.lastJumpPlatform = null;
+    player.trailTimer = 0;
+    player.wasOnGround = false;
     camera.x = 0;
     
-    collectibles.forEach(item => item.collected = false);
+    // Reset to main level
+    platforms = mainPlatforms;
+    collectibles = mainCollectibles;
+    
+    mainCollectibles.forEach(item => item.collected = false);
+    secretCollectibles.forEach(item => item.collected = false);
     
     // Reset monsters
     monsters.length = 0;
     monsterSpawnTimer = 0;
     
     updateUI();
-    document.getElementById('message').textContent = 'Use Arrow Keys or WASD to move and jump (double jump in air!)';
+    document.getElementById('message').textContent = 'Use Arrow Keys or WASD to move and jump. Try triple jumping from the 3rd platform!';
     document.getElementById('message').className = '';
 }
 
